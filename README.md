@@ -6,8 +6,6 @@ This development plan outlines a **specification-driven approach** for implement
 
 The comprehensive documentation for `merge_openapi.py` can be found [here](https://github.com/Contexter/FountainAI/blob/main/openAPI/v4/merge/Comprehensive%20Documentation%20and%20Tutorial%20for%20merge_openapi.py.md).
 
-**Repository:** [FountainAI-Mock](https://github.com/Contexter/FountainAI-Mock)
-
 ## Project Organization and Script Management
 
 To maintain a consistent and organized **project structure**, the repository follows a standardized **folder layout** with a clear **root directory** and explicitly defined **paths**. The root directory of the project is `/service`.
