@@ -1,0 +1,288 @@
+openapi: 3.1.0
+info:
+  title: Action Service
+  description: >
+    This service manages actions associated with characters and spoken words within a story. Actions can be linked to specific characters, providing context to their dialogues and movements. The service supports CRUD operations on actions, ensuring that actions are properly sequenced using the Central Sequence Service.
+  version: 4.0.0
+servers:
+  - url: https://staging.action.fountain.coach
+    description: Staging server for Action Service
+paths:
+  /actions:
+    get:
+      operationId: listActions
+      summary: Retrieve all actions
+      description: >
+        Fetches a list of all actions. You can filter by character, script, section, or speech to find specific actions relevant to your narrative.
+      parameters:
+        - name: characterId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter actions by character ID.
+        - name: scriptId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter actions by script ID.
+        - name: sectionId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter actions by section ID.
+        - name: speechId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter actions by speech ID.
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search for actions containing specific keywords or phrases.
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: A list of actions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Action'
+        '400':
+          description: Invalid query parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    post:
+      operationId: createAction
+      summary: Create a new action
+      description: >
+        Creates a new action associated with a character. The action will be persisted to SQLite and synchronized with Typesense.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionCreateRequest'
+      security:
+        - apiKeyAuth: []
+      responses:
+        '201':
+          description: Action created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionResponse'
+        '400':
+          description: Invalid input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /actions/{actionId}:
+    get:
+      operationId: getActionById
+      summary: Retrieve an action by ID
+      description: >
+        Retrieves a specific action using its ID, along with its associated metadata.
+      parameters:
+        - name: actionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: Action details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Action'
+        '404':
+          description: Action not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    patch:
+      operationId: updateAction
+      summary: Update an action
+      description: >
+        Updates an existing action associated with a character. You can modify the action's description.
+      parameters:
+        - name: actionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionUpdateRequest'
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: Action updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionResponse'
+        '400':
+          description: Invalid action input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '404':
+          description: Action not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    delete:
+      operationId: deleteAction
+      summary: Delete an action
+      description: >
+        Deletes an action by its ID.
+      parameters:
+        - name: actionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      security:
+        - apiKeyAuth: []
+      responses:
+        '204':
+          description: Action deleted successfully.
+        '404':
+          description: Action not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+components:
+  schemas:
+    Action:
+      type: object
+      properties:
+        actionId:
+          type: integer
+          description: Unique identifier for the action.
+        description:
+          type: string
+          description: A textual description outlining what happens in this action.
+        characterId:
+          type: integer
+          description: ID of the character associated with this action.
+        sequenceNumber:
+          type: integer
+          description: Sequence number assigned by the Central Sequence Service to maintain order.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model, explaining why the action is being taken.
+    ActionCreateRequest:
+      type: object
+      properties:
+        description:
+          type: string
+          description: A textual description outlining what happens in this action.
+        characterId:
+          type: integer
+          description: ID of the character associated with this action.
+        comment:
+          type: string
+          description: Contextual explanation for creating the action.
+      required:
+        - description
+        - characterId
+    ActionUpdateRequest:
+      type: object
+      properties:
+        description:
+          type: string
+          description: Updated description of the action.
+        comment:
+          type: string
+          description: Contextual explanation for updating the action.
+      required:
+        - description
+    ActionResponse:
+      type: object
+      properties:
+        actionId:
+          type: integer
+          description: Unique identifier for the action.
+        description:
+          type: string
+          description: A textual description outlining what happens in this action.
+        characterId:
+          type: integer
+          description: ID of the character associated with this action.
+        sequenceNumber:
+          type: integer
+          description: Sequence number assigned by the Central Sequence Service to maintain order.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model, explaining why the action is being taken.
+    StandardError:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          description: Application-specific error code.
+        message:
+          type: string
+          description: Description of the error encountered.
+        details:
+          type: string
+          description: Additional information about the error, if available.
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+security:
+  - apiKeyAuth: []

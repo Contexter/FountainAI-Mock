@@ -1,0 +1,3 @@
+PyYAML
+typer[all]
+openapi-spec-validator

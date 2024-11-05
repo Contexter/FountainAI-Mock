@@ -1,0 +1,2945 @@
+openapi: 3.1.0
+info:
+  title: Mock Server API
+  version: 1.0.0
+  description: Unified Mock Server API specification
+servers:
+- url: http://localhost:8000
+tags:
+- name: System Prompt Management
+  description: Operations related to generating system prompts
+- name: Interaction Handling
+  description: Operations related to handling user interactions
+- name: Logs Management
+  description: Operations related to retrieving logs
+- name: Service Management
+  description: Operations related to managing services in the registry
+paths:
+  /Action-Service/actions:
+    get:
+      operationId: listActions
+      summary: Retrieve all actions
+      description: 'Fetches a list of all actions. You can filter by character, script,
+        section, or speech to find specific actions relevant to your narrative.
+
+        '
+      parameters:
+      - name: characterId
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter actions by character ID.
+      - name: scriptId
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter actions by script ID.
+      - name: sectionId
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter actions by section ID.
+      - name: speechId
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter actions by speech ID.
+      - name: keyword
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Search for actions containing specific keywords or phrases.
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: A list of actions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Action'
+        '400':
+          description: Invalid query parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    post:
+      operationId: createAction
+      summary: Create a new action
+      description: 'Creates a new action associated with a character. The action will
+        be persisted to SQLite and synchronized with Typesense.
+
+        '
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionCreateRequest'
+      security:
+      - apiKeyAuth: []
+      responses:
+        '201':
+          description: Action created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionResponse'
+        '400':
+          description: Invalid input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /Action-Service/actions/{actionId}:
+    get:
+      operationId: getActionById
+      summary: Retrieve an action by ID
+      description: 'Retrieves a specific action using its ID, along with its associated
+        metadata.
+
+        '
+      parameters:
+      - name: actionId
+        in: path
+        required: true
+        schema:
+          type: integer
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: Action details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Action'
+        '404':
+          description: Action not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    patch:
+      operationId: updateAction
+      summary: Update an action
+      description: 'Updates an existing action associated with a character. You can
+        modify the action''s description.
+
+        '
+      parameters:
+      - name: actionId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionUpdateRequest'
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: Action updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionResponse'
+        '400':
+          description: Invalid action input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '404':
+          description: Action not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    delete:
+      operationId: deleteAction
+      summary: Delete an action
+      description: 'Deletes an action by its ID.
+
+        '
+      parameters:
+      - name: actionId
+        in: path
+        required: true
+        schema:
+          type: integer
+      security:
+      - apiKeyAuth: []
+      responses:
+        '204':
+          description: Action deleted successfully.
+        '404':
+          description: Action not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /Story-Factory-Service/stories:
+    get:
+      summary: Retrieve Full Story
+      operationId: getFullStory
+      description: Fetches a complete story, including sections, characters, actions,
+        spoken words, and context.
+      parameters:
+      - name: scriptId
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: Unique identifier of the script to retrieve the story for.
+      - name: filterByContext
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter story elements by context data. The context data can also
+          be utilized in the Paraphrase Service for context-specific responses.
+      responses:
+        '200':
+          description: Full story retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FullStory'
+        '400':
+          description: Invalid request parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Script not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /Story-Factory-Service/stories/sequences:
+    get:
+      summary: Retrieve Story Sequences
+      operationId: getStorySequences
+      description: Retrieves specific sequences from a story, ensuring a logical flow.
+      parameters:
+      - name: scriptId
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: Unique identifier of the script to retrieve sequences for.
+      - name: startSequence
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: The starting sequence number.
+      - name: endSequence
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: The ending sequence number.
+      - name: filterByContext
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter sequences by context data. The context data can also be
+          utilized in the Paraphrase Service for context-specific responses.
+      responses:
+        '200':
+          description: Story sequences retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorySequence'
+        '400':
+          description: Invalid request parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Script or sequences not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /Core-Script-Managment-Service/scripts:
+    get:
+      operationId: listScripts
+      summary: Retrieve all scripts
+      description: 'Fetches a list of all scripts available in the system. Supports
+        filtering by author, title, character, action, and section titles.
+
+        '
+      parameters:
+      - name: author
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter scripts by author's name.
+      - name: title
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter scripts by title.
+      - name: characterId
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter scripts by character ID.
+      - name: actionId
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter scripts by action ID.
+      - name: sectionTitle
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Search for scripts containing specific section titles.
+      - name: sortBy
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - title
+          - author
+        description: Sort the results by title or author.
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: A list of scripts.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Script'
+        '400':
+          description: Invalid query parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    post:
+      operationId: createScript
+      summary: Create a new script
+      description: 'Creates a new script, including sections. The script will be persisted
+        to SQLite and synchronized with Typesense for enhanced searchability.
+
+        '
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScriptCreateRequest'
+      responses:
+        '201':
+          description: Script created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScriptResponse'
+        '400':
+          description: Invalid input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /Core-Script-Managment-Service/scripts/{scriptId}:
+    get:
+      operationId: getScriptById
+      summary: Retrieve a script by ID
+      description: 'Retrieves a specific script using its ID, including associated
+        sections and characters.
+
+        '
+      parameters:
+      - name: scriptId
+        in: path
+        required: true
+        schema:
+          type: integer
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: Script details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScriptResponse'
+        '404':
+          description: Script not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    patch:
+      operationId: updateScript
+      summary: Update a script
+      description: 'Updates an existing script, allowing for modifications to sections.
+        Changes will be synchronized with Typesense.
+
+        '
+      parameters:
+      - name: scriptId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScriptUpdateRequest'
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: Script updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScriptResponse'
+        '400':
+          description: Invalid script input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '404':
+          description: Script not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /Ensemble-Service/services:
+    get:
+      summary: List available FountainAI services
+      description: 'Retrieves a list of all available FountainAI services with their
+        identifiers and descriptions. The service registry is persisted to an SQLite
+        database and synchronized with Typesense for real-time search and retrieval
+        capabilities.
+
+        '
+      operationId: listServices
+      tags:
+      - Service Management
+      security:
+      - apiKeyAuth: []
+      parameters:
+      - name: tags
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+        description: Filter services by tags
+      responses:
+        '200':
+          description: List of services retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  services:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ServiceResponse'
+              example:
+                services:
+                - id: character-service
+                  name: Character Service
+                  description: Manages character data and interactions.
+                  openapi_url: https://character-service.fountain.coach/openapi.json
+                  tags:
+                  - core
+                  - stable
+                - id: action-service
+                  name: Action Service
+                  description: Handles actions performed by characters.
+                  openapi_url: https://action-service.fountain.coach/openapi.json
+                  tags:
+                  - core
+                  - stable
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /Ensemble-Service/services/register:
+    post:
+      summary: Register a new FountainAI service
+      description: 'Registers a new service by adding it to the service registry.
+        The service details are persisted to an SQLite database and synchronized with
+        Typesense. If synchronization with Typesense fails, a retry mechanism will
+        be triggered automatically.
+
+        '
+      operationId: registerService
+      tags:
+      - Service Management
+      security:
+      - adminApiKeyAuth: []
+      requestBody:
+        description: Details of the service to register
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceRegistration'
+      responses:
+        '201':
+          description: Service registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+        '400':
+          description: Bad Request - Invalid service data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Invalid admin API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /Ensemble-Service/services/update/{service_id}:
+    put:
+      summary: Update an existing FountainAI service
+      description: 'Updates the details of an existing service in the service registry.
+        Changes are persisted to an SQLite database and synchronized with Typesense.
+        If synchronization with Typesense fails, a retry mechanism will be triggered
+        automatically.
+
+        '
+      operationId: updateService
+      tags:
+      - Service Management
+      security:
+      - adminApiKeyAuth: []
+      parameters:
+      - name: service_id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Identifier of the service to update
+      requestBody:
+        description: Updated details of the service
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceRegistration'
+      responses:
+        '200':
+          description: Service updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+        '400':
+          description: Bad Request - Invalid service data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Invalid admin API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found - Service does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /Ensemble-Service/services/delete/{service_id}:
+    delete:
+      summary: Delete a FountainAI service
+      description: 'Removes a service from the service registry. The deletion is persisted
+        in the SQLite database and synchronized with Typesense. If synchronization
+        with Typesense fails, a retry mechanism will be triggered automatically.
+
+        '
+      operationId: deleteService
+      tags:
+      - Service Management
+      security:
+      - adminApiKeyAuth: []
+      parameters:
+      - name: service_id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Identifier of the service to delete
+      responses:
+        '200':
+          description: Service deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          description: Unauthorized - Invalid admin API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found - Service does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /Ensemble-Service/system-prompt:
+    get:
+      summary: Generate system prompt for the Assistant based on multiple services
+      description: 'Generates a system prompt for the Assistant using OpenAPI definitions
+        from multiple FountainAI services. The services are specified by their identifiers
+        from the service registry.
+
+        '
+      operationId: generateSystemPrompt
+      tags:
+      - System Prompt Management
+      parameters:
+      - name: service_ids
+        in: query
+        required: true
+        schema:
+          type: array
+          items:
+            type: string
+        description: List of FountainAI service identifiers to include in the system
+          prompt
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: System prompt generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  system_prompt:
+                    type: string
+                    description: The generated system prompt for the Assistant
+              example:
+                system_prompt: You are an AI assistant interacting with various FountainAI
+                  services through their OpenAPI specifications...
+        '400':
+          description: Bad Request - Invalid service identifiers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /Ensemble-Service/interact:
+    post:
+      summary: Handle user input and dynamically manage dialogue between the Assistant
+        and services
+      description: 'Handles user input, sends it to the Assistant, and manages service
+        requests based on a dynamically generated system prompt. Interactions are
+        logged and persisted to an SQLite database, which is synchronized with Typesense.
+
+        '
+      operationId: handleUserInput
+      tags:
+      - Interaction Handling
+      requestBody:
+        description: User input to be processed by the Assistant
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_input:
+                  type: string
+                  description: The user's query or instruction
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: Assistant and service interaction response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  assistant_response:
+                    type: string
+                    description: The Assistant's response
+                  service_responses:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        service_name:
+                          type: string
+                          description: FountainAI service invoked
+                        response:
+                          type: string
+                          description: Response from the service
+              example:
+                assistant_response: The character John Doe moves to the door.
+                service_responses:
+                - service_name: Character Service
+                  response: Character details retrieved successfully.
+                - service_name: Action Service
+                  response: Action 'move to door' processed successfully.
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /Ensemble-Service/logs:
+    get:
+      summary: Retrieve logs of system-prompt-driven interactions
+      description: 'Logs past interactions, capturing key variables such as user input,
+        Assistant responses, and service interactions. The logs are persisted to an
+        SQLite database and synchronized with Typesense for real-time search and retrieval
+        capabilities. If synchronization with Typesense fails, a retry mechanism will
+        be triggered automatically.
+
+        '
+      operationId: retrieveLogs
+      tags:
+      - Logs Management
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 50
+          minimum: 1
+          maximum: 1000
+        description: Number of log entries to retrieve
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          minimum: 0
+        description: Offset for pagination
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: Logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logs:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        timestamp:
+                          type: string
+                          format: date-time
+                          description: Time of interaction
+                        user_input:
+                          type: string
+                          description: User's input
+                        assistant_response:
+                          type: string
+                          description: Assistant's response
+                        service_responses:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              service_name:
+                                type: string
+                                description: FountainAI service invoked
+                              response:
+                                type: string
+                                description: Response from the service
+              example:
+                logs:
+                - timestamp: '2024-10-17T12:34:56Z'
+                  user_input: Retrieve actions for character John Doe.
+                  assistant_response: Character John Doe performs an action.
+                  service_responses:
+                  - service_name: Action Service
+                    response: Action 'enter room' retrieved successfully.
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Failed to synchronize with Typesense
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TypesenseErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /Performer-Service/performers:
+    get:
+      operationId: listPerformers
+      summary: Retrieve all performers
+      description: 'Retrieves a list of all performers stored in SQLite and synchronized
+        with Typesense for search.  The Central Sequence Service ensures performers
+        are returned in the correct sequence.
+
+        '
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: A list of performer entities from SQLite, synchronized with
+            Typesense.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Performer'
+        '400':
+          description: Invalid query parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    post:
+      operationId: createPerformer
+      summary: Create a new performer
+      description: 'Creates a new performer entity and stores it in SQLite, synchronized
+        with Typesense for real-time search.
+
+        '
+      security:
+      - apiKeyAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PerformerCreateRequest'
+      responses:
+        '201':
+          description: Performer created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformerResponse'
+        '400':
+          description: Invalid input data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /Performer-Service/performers/{performerId}:
+    get:
+      operationId: getPerformerById
+      summary: Retrieve performer by ID
+      description: 'Retrieves a performer by its unique ID from SQLite, synchronized
+        with Typesense for search.
+
+        '
+      security:
+      - apiKeyAuth: []
+      parameters:
+      - name: performerId
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Performer retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformerResponse'
+        '400':
+          description: Invalid performer ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '404':
+          description: Performer not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    patch:
+      operationId: patchPerformer
+      summary: Partially update performer details
+      description: 'Partially updates a performer''s details, only applying the changes
+        provided in the request.
+
+        '
+      security:
+      - apiKeyAuth: []
+      parameters:
+      - name: performerId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PerformerPatchRequest'
+      responses:
+        '200':
+          description: Performer updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformerResponse'
+        '400':
+          description: Invalid input data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '404':
+          description: Performer not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /Central-Sequence-Service/sequence:
+    post:
+      summary: Generate Sequence Number
+      operationId: generateSequenceNumber
+      tags:
+      - Sequence Management
+      description: Generates a new sequence number for a specified element type, persists
+        it to an SQLite database, and synchronizes it with Typesense. If synchronization
+        with Typesense fails, a retry mechanism will be triggered automatically.
+      requestBody:
+        required: true
+        description: Details of the element requesting a sequence number.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SequenceRequest'
+      responses:
+        '201':
+          description: Sequence number successfully generated and synchronized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SequenceResponse'
+        '400':
+          description: Invalid request parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Failed to synchronize with Typesense.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TypesenseErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /Central-Sequence-Service/sequence/reorder:
+    put:
+      summary: Reorder Elements
+      operationId: reorderElements
+      tags:
+      - Sequence Management
+      description: Reorders elements by updating their sequence numbers, persists
+        the changes to an SQLite database, and synchronizes the changes with Typesense.
+        If synchronization with Typesense fails, a retry mechanism will be triggered
+        automatically.
+      requestBody:
+        required: true
+        description: Details of the reordering request.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderRequest'
+      responses:
+        '200':
+          description: Elements successfully reordered and synchronized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReorderResponse'
+        '400':
+          description: Invalid request parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Failed to synchronize with Typesense.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TypesenseErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /Central-Sequence-Service/sequence/version:
+    post:
+      summary: Create New Version
+      operationId: createVersion
+      tags:
+      - Version Management
+      description: Creates a new version of an element, persists it to an SQLite database,
+        and synchronizes it with Typesense. If synchronization with Typesense fails,
+        a retry mechanism will be triggered automatically.
+      requestBody:
+        required: true
+        description: Details of the versioning request.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VersionRequest'
+      responses:
+        '201':
+          description: New version successfully created and synchronized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionResponse'
+        '400':
+          description: Invalid request parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Failed to synchronize with Typesense.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TypesenseErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /Session-And-Context-Service/sessions:
+    get:
+      operationId: listSessions
+      summary: Retrieve all sessions
+      description: 'Fetches a list of all active user sessions. Can filter by context.
+
+        '
+      parameters:
+      - name: context
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter sessions by context description.
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: A list of sessions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Session'
+        '400':
+          description: Invalid query parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    post:
+      operationId: createSession
+      summary: Create a new session
+      description: 'Creates a new user session, allowing for context data to be attached.
+        The session will be persisted to SQLite and synchronized with Typesense for
+        enhanced searchability.
+
+        '
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionCreateRequest'
+      responses:
+        '201':
+          description: Session created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          description: Invalid input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /Session-And-Context-Service/sessions/{sessionId}:
+    get:
+      operationId: getSessionById
+      summary: Retrieve a session by ID
+      description: 'Retrieves a specific user session using its ID, including associated
+        context data.
+
+        '
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: integer
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: Session details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '404':
+          description: Session not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    patch:
+      operationId: updateSession
+      summary: Update a session
+      description: 'Updates an existing session, allowing for modifications to context
+        data. Changes will be synchronized with Typesense.
+
+        '
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionUpdateRequest'
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: Session updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          description: Invalid session input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '404':
+          description: Session not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /Spoken-Word-Service/lines:
+    get:
+      operationId: listLines
+      summary: Retrieve lines based on context
+      description: 'Fetches lines of spoken words based on context from the Story
+        Factory API. You can filter by character, speech, section, and keywords to
+        assist in your reasoning.
+
+        '
+      parameters:
+      - name: scriptId
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: Unique identifier of the script.
+      - name: characterId
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter lines by character ID.
+      - name: speechId
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter lines by speech ID.
+      - name: sectionId
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter lines by section ID.
+      - name: actionId
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter lines by associated action ID.
+      - name: keyword
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Search for lines containing specific keywords or phrases.
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: A list of spoken lines.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Line'
+        '400':
+          description: Invalid query parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    post:
+      operationId: createLine
+      summary: Create a new line
+      description: 'Creates a new line of spoken words within a speech. The line will
+        be persisted to SQLite and synchronized with Typesense.
+
+        '
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineCreateRequest'
+      security:
+      - apiKeyAuth: []
+      responses:
+        '201':
+          description: Line created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineResponse'
+        '400':
+          description: Invalid input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /Spoken-Word-Service/lines/{lineId}:
+    get:
+      operationId: getLineById
+      summary: Retrieve a line by ID
+      description: 'Retrieves a specific line of spoken words using its ID, along
+        with its assigned metadata and sequence number.
+
+        '
+      parameters:
+      - name: lineId
+        in: path
+        required: true
+        schema:
+          type: integer
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: Line details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineResponse'
+        '404':
+          description: Line not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    patch:
+      operationId: updateLine
+      summary: Update a line
+      description: 'Updates an existing line of spoken words. You can modify the line''s
+        content, and its sequence number can be reassigned via the Central Sequence
+        Service if needed.
+
+        '
+      parameters:
+      - name: lineId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineUpdateRequest'
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: Line updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineResponse'
+        '400':
+          description: Invalid line input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '404':
+          description: Line not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /Paraphrase-Service/paraphrases:
+    get:
+      operationId: listParaphrases
+      summary: Retrieve all paraphrases
+      description: 'Fetches a list of all paraphrases. You can filter by character,
+        action, or spoken word to find specific paraphrases relevant to your narrative.
+
+        '
+      parameters:
+      - name: characterId
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter paraphrases by character ID.
+      - name: actionId
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter paraphrases by action ID.
+      - name: spokenWordId
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter paraphrases by spoken word ID.
+      - name: keyword
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Search for paraphrases containing specific keywords or phrases.
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: A list of paraphrases.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Paraphrase'
+        '400':
+          description: Invalid query parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    post:
+      operationId: createParaphrase
+      summary: Create a new paraphrase
+      description: 'Creates a new paraphrase associated with a character, action,
+        or spoken word. The paraphrase will be persisted to SQLite and synchronized
+        with Typesense for enhanced searchability.
+
+        '
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParaphraseCreateRequest'
+      responses:
+        '201':
+          description: Paraphrase created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParaphraseResponse'
+        '400':
+          description: Invalid input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /Paraphrase-Service/paraphrases/{paraphraseId}:
+    get:
+      operationId: getParaphraseById
+      summary: Retrieve a paraphrase by ID
+      description: 'Retrieves a specific paraphrase using its ID, along with its associated
+        metadata.
+
+        '
+      parameters:
+      - name: paraphraseId
+        in: path
+        required: true
+        schema:
+          type: integer
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: Paraphrase details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParaphraseResponse'
+        '404':
+          description: Paraphrase not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    patch:
+      operationId: updateParaphrase
+      summary: Update a paraphrase
+      description: 'Updates an existing paraphrase associated with a character, action,
+        or spoken word. You can modify the text and commentary. The updated paraphrase
+        will also be synchronized with Typesense.
+
+        '
+      parameters:
+      - name: paraphraseId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParaphraseUpdateRequest'
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: Paraphrase updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParaphraseResponse'
+        '400':
+          description: Invalid paraphrase input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '404':
+          description: Paraphrase not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    delete:
+      operationId: deleteParaphrase
+      summary: Delete a paraphrase
+      description: 'Deletes a paraphrase by its ID. The deletion will also be reflected
+        in the Typesense synchronization.
+
+        '
+      parameters:
+      - name: paraphraseId
+        in: path
+        required: true
+        schema:
+          type: integer
+      security:
+      - apiKeyAuth: []
+      responses:
+        '204':
+          description: Paraphrase deleted successfully.
+        '404':
+          description: Paraphrase not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /Character-Service/characters:
+    get:
+      operationId: listCharacters
+      summary: Retrieve all characters
+      description: 'Retrieves a list of all characters stored in SQLite and synchronized
+        with Typesense  for search. The Central Sequence Service ensures characters
+        are returned in the correct sequence.
+
+        '
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: 'A list of character entities from SQLite, synchronized with
+            Typesense.
+
+            '
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Character'
+        '500':
+          description: 'Internal server error.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    post:
+      operationId: createCharacter
+      summary: Create a new character
+      description: 'Allows the creation of a new character. The data is persisted
+        in SQLite and synchronized  with Typesense for search. A sequence number is
+        generated and managed by the Central Sequence Service.
+
+        '
+      security:
+      - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CharacterCreateRequest'
+      responses:
+        '201':
+          description: 'Character successfully created and stored in SQLite, synchronized
+            with Typesense.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CharacterResponse'
+        '400':
+          description: Invalid request data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: 'Internal server error.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /Character-Service/characters/{characterId}:
+    get:
+      operationId: getCharacterById
+      summary: Retrieve character by ID
+      description: 'Retrieves a character''s details by their unique ID.
+
+        '
+      parameters:
+      - name: characterId
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: The ID of the character to retrieve.
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: 'The character details for the specified characterId.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CharacterResponse'
+        '404':
+          description: Character not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: 'Internal server error.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    patch:
+      operationId: patchCharacter
+      summary: Partially update character details
+      description: "Allows partial updates to character information, such as name\
+        \ or description. \n"
+      parameters:
+      - name: characterId
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: The ID of the character to patch.
+      security:
+      - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CharacterPatchRequest'
+      responses:
+        '200':
+          description: 'Character successfully updated with partial data.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CharacterResponse'
+        '400':
+          description: Invalid request data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '404':
+          description: Character not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: 'Internal server error.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    put:
+      operationId: updateCharacter
+      summary: Fully update character details
+      description: 'Updates the character details completely. The data is persisted
+        in SQLite and synchronized with Typesense.
+
+        '
+      parameters:
+      - name: characterId
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: The ID of the character to update.
+      security:
+      - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CharacterUpdateRequest'
+      responses:
+        '200':
+          description: 'Character successfully updated with full data.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CharacterResponse'
+        '400':
+          description: Invalid request data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '404':
+          description: Character not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: 'Internal server error.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /Character-Service/characters/scripts/{scriptId}:
+    get:
+      operationId: listCharactersByScript
+      summary: Retrieve characters by script
+      description: 'Retrieves a list of characters based on a script, stored in SQLite
+        and synchronized  with Typesense for search. The Central Sequence Service
+        ensures characters are returned in the correct sequence.
+
+        '
+      parameters:
+      - name: scriptId
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: The ID of the script to retrieve characters from.
+      security:
+      - apiKeyAuth: []
+      responses:
+        '200':
+          description: 'A list of characters for the specified script, synchronized
+            with Typesense.
+
+            '
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Character'
+        '404':
+          description: Script not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+components:
+  schemas:
+    Action:
+      type: object
+      properties:
+        actionId:
+          type: integer
+          description: Unique identifier for the action.
+        description:
+          type: string
+          description: A textual description outlining what happens in this action.
+        characterId:
+          type: integer
+          description: ID of the character associated with this action.
+        sequenceNumber:
+          type: integer
+          description: Sequence number assigned by the Central Sequence Service to
+            maintain order.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model,
+            explaining why the action is being taken.
+    ActionCreateRequest:
+      type: object
+      properties:
+        description:
+          type: string
+          description: A textual description outlining what happens in this action.
+        characterId:
+          type: integer
+          description: ID of the character associated with this action.
+        comment:
+          type: string
+          description: Contextual explanation for creating the action.
+      required:
+      - description
+      - characterId
+    ActionUpdateRequest:
+      type: object
+      properties:
+        description:
+          type: string
+          description: Updated description of the action.
+        comment:
+          type: string
+          description: Contextual explanation for updating the action.
+      required:
+      - description
+    ActionResponse:
+      type: object
+      properties:
+        actionId:
+          type: integer
+          description: Unique identifier for the action.
+        description:
+          type: string
+          description: A textual description outlining what happens in this action.
+        characterId:
+          type: integer
+          description: ID of the character associated with this action.
+        sequenceNumber:
+          type: integer
+          description: Sequence number assigned by the Central Sequence Service to
+            maintain order.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model,
+            explaining why the action is being taken.
+    StandardError:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          description: Application-specific error code.
+        message:
+          type: string
+          description: Description of the error encountered.
+        details:
+          type: string
+          description: Additional information about the error, if available.
+    FullStory:
+      type: object
+      properties:
+        scriptId:
+          type: integer
+          description: Unique identifier of the script.
+        title:
+          type: string
+          description: Title of the script.
+        author:
+          type: string
+          description: Author of the script.
+        description:
+          type: string
+          description: Brief description or summary of the script.
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/SectionHeading'
+        story:
+          type: array
+          items:
+            $ref: '#/components/schemas/StoryElement'
+        orchestration:
+          type: object
+          properties:
+            csoundFilePath:
+              type: string
+              description: Path to the generated Csound file.
+            lilyPondFilePath:
+              type: string
+              description: Path to the generated LilyPond file.
+            midiFilePath:
+              type: string
+              description: Path to the generated MIDI file.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model,
+            explaining why the story was assembled or updated.
+    SectionHeading:
+      type: object
+      properties:
+        headingId:
+          type: integer
+          description: Unique identifier for the Section Heading.
+        scriptId:
+          type: integer
+          description: Identifier of the script this Section Heading belongs to.
+        title:
+          type: string
+          description: Title of the Section Heading.
+        sequence:
+          type: integer
+          description: Order sequence of the Section Heading within the script.
+    StoryElement:
+      type: object
+      properties:
+        sequence:
+          type: integer
+          description: The sequence number of the story element, ensuring the correct
+            order.
+        character:
+          $ref: '#/components/schemas/Character'
+        action:
+          $ref: '#/components/schemas/Action'
+        spokenWord:
+          $ref: '#/components/schemas/SpokenWord'
+        context:
+          $ref: '#/components/schemas/Context'
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model,
+            explaining why the element is part of the story.
+    Character:
+      type: object
+      properties:
+        characterId:
+          type: integer
+          description: Unique identifier for the character.
+        name:
+          type: string
+          description: Name of the character.
+        description:
+          type: string
+          description: A brief description of the character and their role within
+            the screenplay.
+    Story-Factory-Service_Action:
+      type: object
+      properties:
+        actionId:
+          type: integer
+          description: Unique identifier for the action.
+        description:
+          type: string
+          description: A textual description outlining what happens in this action.
+    SpokenWord:
+      type: object
+      properties:
+        dialogueId:
+          type: integer
+          description: Unique identifier for the SpokenWord entity.
+        text:
+          type: string
+          description: The dialogue text of the SpokenWord entity.
+        sequence:
+          type: integer
+          description: Order sequence of the SpokenWord within the script.
+    Context:
+      type: object
+      properties:
+        contextId:
+          type: integer
+          description: Unique identifier for the context.
+        characterId:
+          type: integer
+          description: Identifier of the character this context belongs to.
+        data:
+          type: object
+          description: Context data for the character.
+          additionalProperties:
+            type: string
+    StorySequence:
+      type: object
+      properties:
+        scriptId:
+          type: integer
+          description: Unique identifier of the script.
+        sequences:
+          type: array
+          items:
+            $ref: '#/components/schemas/StoryElement'
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model,
+            explaining why the sequence was retrieved.
+    ErrorResponse:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          description: Application-specific error code.
+        message:
+          type: string
+          description: Human-readable error message.
+        details:
+          type: string
+          description: Additional information about the error, if available.
+    Script:
+      type: object
+      properties:
+        scriptId:
+          type: integer
+          description: Unique identifier for the script.
+        title:
+          type: string
+          description: Title of the script.
+        author:
+          type: string
+          description: Author of the script.
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/Section'
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model,
+            explaining why the script was created or updated.
+    ScriptCreateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Title of the script.
+        author:
+          type: string
+          description: Author of the script.
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/SectionCreateRequest'
+        comment:
+          type: string
+          description: Contextual explanation for creating the script.
+      required:
+      - title
+      - author
+      - sections
+      - comment
+    ScriptUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Updated title of the script.
+        author:
+          type: string
+          description: Updated author of the script.
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/SectionUpdateRequest'
+        comment:
+          type: string
+          description: Contextual explanation for updating the script.
+      required:
+      - title
+      - author
+      - sections
+      - comment
+    ScriptResponse:
+      type: object
+      properties:
+        scriptId:
+          type: integer
+          description: Unique identifier for the script.
+        title:
+          type: string
+          description: Title of the script.
+        author:
+          type: string
+          description: Author of the script.
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/Section'
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model,
+            explaining why the script was created or updated.
+    Section:
+      type: object
+      properties:
+        sectionId:
+          type: integer
+          description: Unique identifier for the section.
+        title:
+          type: string
+          description: Title of the section.
+    SectionCreateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Title of the section.
+      required:
+      - title
+    SectionUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Updated title of the section.
+      required:
+      - title
+    ServiceRegistration:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the service
+        name:
+          type: string
+          description: Name of the service
+        description:
+          type: string
+          description: Description of the service
+        openapi_url:
+          type: string
+          format: uri
+          description: URL to the OpenAPI specification of the service
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags or categories associated with the service
+      required:
+      - id
+      - name
+      - description
+      - openapi_url
+    ServiceResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the service
+        name:
+          type: string
+          description: Name of the service
+        description:
+          type: string
+          description: Description of the service
+        openapi_url:
+          type: string
+          format: uri
+          description: URL to the OpenAPI specification of the service
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags or categories associated with the service
+    SuccessResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message
+    Ensemble-Service_ErrorResponse:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          description: Application-specific error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: string
+          description: Additional information about the error, if available
+    TypesenseErrorResponse:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          description: Error code related to Typesense synchronization
+        retryAttempt:
+          type: integer
+          description: Number of retry attempts made to synchronize with Typesense
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: string
+          description: Additional information about the Typesense error, if available
+    Performer:
+      type: object
+      properties:
+        performerId:
+          type: integer
+          description: Unique identifier for the performer.
+        name:
+          type: string
+          description: The name of the performer.
+        sequenceNumber:
+          type: integer
+          description: Sequence number assigned by the Central Sequence Service.
+        isSyncedToTypesense:
+          type: boolean
+          description: Indicates whether the performer is synchronized with Typesense.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model,
+            explaining why the performer was created or updated.
+    PerformerCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the performer.
+        comment:
+          type: string
+          description: Contextual explanation for creating the performer.
+      required:
+      - name
+      - comment
+    PerformerPatchRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the performer.
+        comment:
+          type: string
+          description: Contextual explanation for updating the performer.
+      required:
+      - comment
+    PerformerResponse:
+      type: object
+      properties:
+        performerId:
+          type: integer
+          description: Unique identifier for the performer.
+        name:
+          type: string
+          description: The name of the performer.
+        sequenceNumber:
+          type: integer
+          description: Sequence number assigned by the Central Sequence Service.
+        isSyncedToTypesense:
+          type: boolean
+          description: Indicates whether the performer is synchronized with Typesense.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model,
+            explaining why the performer was created or updated.
+    SequenceRequest:
+      description: Schema representing a request to generate a new sequence number
+      type: object
+      properties:
+        elementType:
+          type: string
+          description: Type of the element (e.g., script, section, character, action,
+            spokenWord).
+          enum:
+          - script
+          - section
+          - character
+          - action
+          - spokenWord
+        elementId:
+          type: integer
+          description: Unique identifier of the element.
+          minimum: 1
+        comment:
+          type: string
+          description: Contextual explanation for generating the sequence number.
+      required:
+      - elementType
+      - elementId
+      - comment
+    SequenceResponse:
+      description: Schema representing the response with a generated sequence number
+      type: object
+      properties:
+        sequenceNumber:
+          type: integer
+          description: The generated sequence number.
+          minimum: 1
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model,
+            explaining why the sequence number was generated.
+    ReorderRequest:
+      description: Schema representing a request to reorder elements
+      type: object
+      properties:
+        elementType:
+          type: string
+          description: Type of elements being reordered.
+          enum:
+          - script
+          - section
+          - character
+          - action
+          - spokenWord
+        elements:
+          type: array
+          items:
+            type: object
+            properties:
+              elementId:
+                type: integer
+                description: Unique identifier of the element.
+                minimum: 1
+              newSequence:
+                type: integer
+                description: New sequence number for the element.
+                minimum: 1
+        comment:
+          type: string
+          description: Contextual explanation for reordering the elements.
+      required:
+      - elementType
+      - elements
+      - comment
+    ReorderResponse:
+      description: Schema representing the response after reordering elements
+      type: object
+      properties:
+        updatedElements:
+          type: array
+          items:
+            type: object
+            properties:
+              elementId:
+                type: integer
+                description: Unique identifier of the element.
+              newSequence:
+                type: integer
+                description: Updated sequence number.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model,
+            explaining why the elements were reordered.
+    VersionRequest:
+      description: Schema representing a request to create a new version of an element
+      type: object
+      properties:
+        elementType:
+          type: string
+          description: Type of the element (e.g., script, section, character, action,
+            spokenWord).
+          enum:
+          - script
+          - section
+          - character
+          - action
+          - spokenWord
+        elementId:
+          type: integer
+          description: Unique identifier of the element.
+          minimum: 1
+        newVersionData:
+          type: object
+          description: Data for the new version of the element.
+        comment:
+          type: string
+          description: Contextual explanation for creating the new version.
+      required:
+      - elementType
+      - elementId
+      - newVersionData
+      - comment
+    VersionResponse:
+      description: Schema representing the response with the new version number
+      type: object
+      properties:
+        versionNumber:
+          type: integer
+          description: The version number of the new version.
+          minimum: 1
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model,
+            explaining why the new version was created.
+    Central-Sequence-Service_SuccessResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message.
+    Central-Sequence-Service_TypesenseErrorResponse:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          description: Error code related to Typesense synchronization.
+        retryAttempt:
+          type: integer
+          description: Number of retry attempts made to synchronize with Typesense.
+        message:
+          type: string
+          description: Human-readable error message.
+        details:
+          type: string
+          description: Additional information about the Typesense error, if available.
+    Session:
+      type: object
+      properties:
+        sessionId:
+          type: integer
+          description: Unique identifier for the session.
+        context:
+          type: array
+          items:
+            type: string
+          description: Array of context strings for the session, which can include
+            references to paraphrases.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model,
+            explaining why the session was created or updated.
+    SessionCreateRequest:
+      type: object
+      properties:
+        context:
+          type: array
+          items:
+            type: string
+          description: Array of context strings to attach to the new session, which
+            can include references to paraphrases.
+        comment:
+          type: string
+          description: Contextual explanation for creating the session.
+      required:
+      - context
+      - comment
+    SessionUpdateRequest:
+      type: object
+      properties:
+        context:
+          type: array
+          items:
+            type: string
+          description: Updated array of context strings for the session, including
+            references to paraphrases.
+        comment:
+          type: string
+          description: Contextual explanation for updating the session.
+      required:
+      - context
+      - comment
+    SessionResponse:
+      type: object
+      properties:
+        sessionId:
+          type: integer
+          description: Unique identifier for the session.
+        context:
+          type: array
+          items:
+            type: string
+          description: Array of context strings for the session, which can include
+            references to paraphrases.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model,
+            explaining why the session was created or updated.
+    Line:
+      type: object
+      properties:
+        lineId:
+          type: integer
+          description: Unique identifier for the line.
+        speechId:
+          type: integer
+          description: ID of the speech this line belongs to.
+        characterId:
+          type: integer
+          description: ID of the character delivering this line.
+        content:
+          type: string
+          description: The content of the line.
+        sequenceNumber:
+          type: integer
+          description: Sequence number assigned by the Central Sequence Service to
+            maintain order.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model,
+            explaining why the line was created or updated.
+    LineCreateRequest:
+      type: object
+      properties:
+        speechId:
+          type: integer
+          description: ID of the speech this line will be part of.
+        characterId:
+          type: integer
+          description: ID of the character delivering this line.
+        content:
+          type: string
+          description: Content of the line to be created.
+        comment:
+          type: string
+          description: Contextual explanation for creating the line.
+      required:
+      - speechId
+      - characterId
+      - content
+      - comment
+    LineUpdateRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          description: Updated content of the line.
+        comment:
+          type: string
+          description: Contextual explanation for updating the line.
+      required:
+      - content
+      - comment
+    LineResponse:
+      type: object
+      properties:
+        lineId:
+          type: integer
+          description: Unique identifier for the line.
+        speechId:
+          type: integer
+          description: ID of the speech this line belongs to.
+        characterId:
+          type: integer
+          description: ID of the character delivering this line.
+        content:
+          type: string
+          description: The content of the line.
+        sequenceNumber:
+          type: integer
+          description: Sequence number assigned by the Central Sequence Service to
+            maintain order.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model,
+            explaining why the line was created or updated.
+    Paraphrase:
+      type: object
+      properties:
+        paraphraseId:
+          type: integer
+          description: Unique identifier for the paraphrase.
+        originalId:
+          type: integer
+          description: Identifier of the original entity this paraphrase is linked
+            to.
+        text:
+          type: string
+          description: The text of the paraphrase.
+        commentary:
+          type: string
+          description: Reasons explaining why this paraphrase is as it is.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model,
+            explaining why the paraphrase was created or updated.
+    ParaphraseCreateRequest:
+      type: object
+      properties:
+        originalId:
+          type: integer
+          description: Identifier of the original entity this paraphrase is linked
+            to.
+        text:
+          type: string
+          description: The text of the paraphrase.
+        commentary:
+          type: string
+          description: Reasons explaining why this paraphrase is as it is.
+        comment:
+          type: string
+          description: Contextual explanation for creating the paraphrase.
+      required:
+      - originalId
+      - text
+      - commentary
+      - comment
+    ParaphraseUpdateRequest:
+      type: object
+      properties:
+        text:
+          type: string
+          description: Updated text of the paraphrase.
+        commentary:
+          type: string
+          description: Reasons explaining why this paraphrase is as it is.
+        comment:
+          type: string
+          description: Contextual explanation for updating the paraphrase.
+      required:
+      - text
+      - commentary
+      - comment
+    ParaphraseResponse:
+      type: object
+      properties:
+        paraphraseId:
+          type: integer
+          description: Unique identifier for the paraphrase.
+        originalId:
+          type: integer
+          description: Identifier of the original entity this paraphrase is linked
+            to.
+        text:
+          type: string
+          description: The text of the paraphrase.
+        commentary:
+          type: string
+          description: Reasons explaining why this paraphrase is as it is.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model,
+            explaining why the paraphrase was created or updated.
+    Character-Service_Character:
+      type: object
+      properties:
+        characterId:
+          type: integer
+          description: Unique identifier for the character.
+        name:
+          type: string
+          description: The name of the character.
+        description:
+          type: string
+          description: A brief description of the character and their role within
+            the story.
+        sequenceNumber:
+          type: integer
+          description: 'Sequence number assigned by the Central Sequence Service.
+
+            '
+        isSyncedToTypesense:
+          type: boolean
+          description: Indicates whether the character is synchronized with Typesense.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model,
+            explaining why the character was created or updated.
+    CharacterCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the character.
+        description:
+          type: string
+          description: A brief description of the character and their role within
+            the story.
+        comment:
+          type: string
+          description: Contextual explanation for creating the character.
+      required:
+      - name
+      - description
+      - comment
+    CharacterPatchRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The updated name of the character.
+        description:
+          type: string
+          description: The updated description of the character.
+        comment:
+          type: string
+          description: Contextual explanation for updating the character.
+      required:
+      - comment
+    CharacterUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The updated name of the character.
+        description:
+          type: string
+          description: The updated description of the character.
+        comment:
+          type: string
+          description: Contextual explanation for updating the character.
+      required:
+      - name
+      - description
+      - comment
+    CharacterResponse:
+      type: object
+      properties:
+        characterId:
+          type: integer
+          description: Unique identifier for the character.
+        name:
+          type: string
+          description: The name of the character.
+        description:
+          type: string
+          description: A brief description of the character and their role within
+            the story.
+        sequenceNumber:
+          type: integer
+          description: 'Sequence number assigned by the Central Sequence Service.
+
+            '
+        isSyncedToTypesense:
+          type: boolean
+          description: Indicates whether the character is synchronized with Typesense.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model,
+            explaining why the character was created or updated.
+    Character-Service_StandardError:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          description: Application-specific error code.
+        message:
+          type: string
+          description: Description of the error.
+        details:
+          type: string
+          description: Additional information about the error, if available.
+  responses: {}
+  parameters: {}
+  requestBodies: {}

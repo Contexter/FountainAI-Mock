@@ -1,0 +1,290 @@
+openapi: 3.1.0
+info:
+  title: Paraphrase Service
+  description: >
+    This service manages paraphrases associated with characters, actions, and spoken words within a story. It allows for creating, retrieving, updating, and deleting paraphrases, providing context to the original dialogues and actions. Each paraphrase is synced with Typesense for enhanced searchability.
+  version: 4.0.0
+servers:
+  - url: https://staging.paraphrase.fountain.coach
+    description: Staging server for Paraphrase Service
+paths:
+  /paraphrases:
+    get:
+      operationId: listParaphrases
+      summary: Retrieve all paraphrases
+      description: >
+        Fetches a list of all paraphrases. You can filter by character, action, or spoken word to find specific paraphrases relevant to your narrative.
+      parameters:
+        - name: characterId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter paraphrases by character ID.
+        - name: actionId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter paraphrases by action ID.
+        - name: spokenWordId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter paraphrases by spoken word ID.
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search for paraphrases containing specific keywords or phrases.
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: A list of paraphrases.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Paraphrase'
+        '400':
+          description: Invalid query parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    post:
+      operationId: createParaphrase
+      summary: Create a new paraphrase
+      description: >
+        Creates a new paraphrase associated with a character, action, or spoken word. The paraphrase will be persisted to SQLite and synchronized with Typesense for enhanced searchability.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParaphraseCreateRequest'
+      responses:
+        '201':
+          description: Paraphrase created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParaphraseResponse'
+        '400':
+          description: Invalid input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /paraphrases/{paraphraseId}:
+    get:
+      operationId: getParaphraseById
+      summary: Retrieve a paraphrase by ID
+      description: >
+        Retrieves a specific paraphrase using its ID, along with its associated metadata.
+      parameters:
+        - name: paraphraseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: Paraphrase details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParaphraseResponse'
+        '404':
+          description: Paraphrase not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    patch:
+      operationId: updateParaphrase
+      summary: Update a paraphrase
+      description: >
+        Updates an existing paraphrase associated with a character, action, or spoken word. You can modify the text and commentary. The updated paraphrase will also be synchronized with Typesense.
+      parameters:
+        - name: paraphraseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParaphraseUpdateRequest'
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: Paraphrase updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParaphraseResponse'
+        '400':
+          description: Invalid paraphrase input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '404':
+          description: Paraphrase not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    delete:
+      operationId: deleteParaphrase
+      summary: Delete a paraphrase
+      description: >
+        Deletes a paraphrase by its ID. The deletion will also be reflected in the Typesense synchronization.
+      parameters:
+        - name: paraphraseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      security:
+        - apiKeyAuth: []
+      responses:
+        '204':
+          description: Paraphrase deleted successfully.
+        '404':
+          description: Paraphrase not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+components:
+  schemas:
+    Paraphrase:
+      type: object
+      properties:
+        paraphraseId:
+          type: integer
+          description: Unique identifier for the paraphrase.
+        originalId:
+          type: integer
+          description: Identifier of the original entity this paraphrase is linked to.
+        text:
+          type: string
+          description: The text of the paraphrase.
+        commentary:
+          type: string
+          description: Reasons explaining why this paraphrase is as it is.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model, explaining why the paraphrase was created or updated.
+    ParaphraseCreateRequest:
+      type: object
+      properties:
+        originalId:
+          type: integer
+          description: Identifier of the original entity this paraphrase is linked to.
+        text:
+          type: string
+          description: The text of the paraphrase.
+        commentary:
+          type: string
+          description: Reasons explaining why this paraphrase is as it is.
+        comment:
+          type: string
+          description: Contextual explanation for creating the paraphrase.
+      required:
+        - originalId
+        - text
+        - commentary
+        - comment
+    ParaphraseUpdateRequest:
+      type: object
+      properties:
+        text:
+          type: string
+          description: Updated text of the paraphrase.
+        commentary:
+          type: string
+          description: Reasons explaining why this paraphrase is as it is.
+        comment:
+          type: string
+          description: Contextual explanation for updating the paraphrase.
+      required:
+        - text
+        - commentary
+        - comment
+    ParaphraseResponse:
+      type: object
+      properties:
+        paraphraseId:
+          type: integer
+          description: Unique identifier for the paraphrase.
+        originalId:
+          type: integer
+          description: Identifier of the original entity this paraphrase is linked to.
+        text:
+          type: string
+          description: The text of the paraphrase.
+        commentary:
+          type: string
+          description: Reasons explaining why this paraphrase is as it is.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model, explaining why the paraphrase was created or updated.
+    StandardError:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          description: Application-specific error code.
+        message:
+          type: string
+          description: Description of the error encountered.
+        details:
+          type: string
+          description: Additional information about the error, if available.
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+security:
+  - apiKeyAuth: []
