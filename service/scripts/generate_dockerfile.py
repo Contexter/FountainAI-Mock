@@ -2,7 +2,7 @@ import os
 
 def generate_dockerfile():
     base_dir = os.path.abspath(os.path.dirname(__file__))
-    service_dir = os.path.join(base_dir, 'service')
+    service_dir = os.path.join(base_dir, '..')
 
     dockerfile_content = """
     # Stage 1: Build stage
@@ -17,7 +17,7 @@ def generate_dockerfile():
         rm -rf /var/lib/apt/lists/*
 
     # Copy only the requirements file to leverage Docker cache
-    COPY /service/openapi/requirements.txt /service/requirements.txt
+    COPY openapi/requirements.txt /service/requirements.txt
 
     # Create a virtual environment and install Python dependencies
     RUN python -m venv /service/venv && \
@@ -31,6 +31,9 @@ def generate_dockerfile():
 
     # Set the working directory in the container
     WORKDIR /service
+
+    # Install Uvicorn
+    RUN pip install uvicorn
 
     # Copy from the builder stage
     COPY --from=builder /service /service
@@ -72,4 +75,3 @@ def generate_dockerfile():
 
 if __name__ == "__main__":
     generate_dockerfile()
-
