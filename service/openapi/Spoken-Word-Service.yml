@@ -1,0 +1,278 @@
+openapi: 3.1.0
+info:
+  title: Spoken Word Service
+  description: >
+    This service manages lines of spoken words within a story, allowing for intuitive retrieval based on context. Lines are grouped into speeches and can be interspersed with actions. The service supports CRUD operations on lines, which are synchronized with Typesense for searchability. You can utilize this API to reason about dialogues in your interactions with users.
+  version: 4.0.0
+servers:
+  - url: https://staging.spokenword.fountain.coach
+    description: Staging server for Spoken Word Service
+paths:
+  /lines:
+    get:
+      operationId: listLines
+      summary: Retrieve lines based on context
+      description: >
+        Fetches lines of spoken words based on context from the Story Factory API. You can filter by character, speech, section, and keywords to assist in your reasoning.
+      parameters:
+        - name: scriptId
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Unique identifier of the script.
+        - name: characterId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter lines by character ID.
+        - name: speechId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter lines by speech ID.
+        - name: sectionId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter lines by section ID.
+        - name: actionId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter lines by associated action ID.
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search for lines containing specific keywords or phrases.
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: A list of spoken lines.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Line'
+        '400':
+          description: Invalid query parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    post:
+      operationId: createLine
+      summary: Create a new line
+      description: >
+        Creates a new line of spoken words within a speech. The line will be persisted to SQLite and synchronized with Typesense.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineCreateRequest'
+      security:
+        - apiKeyAuth: []
+      responses:
+        '201':
+          description: Line created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineResponse'
+        '400':
+          description: Invalid input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /lines/{lineId}:
+    get:
+      operationId: getLineById
+      summary: Retrieve a line by ID
+      description: >
+        Retrieves a specific line of spoken words using its ID, along with its assigned metadata and sequence number.
+      parameters:
+        - name: lineId
+          in: path
+          required: true
+          schema:
+            type: integer
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: Line details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineResponse'
+        '404':
+          description: Line not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    patch:
+      operationId: updateLine
+      summary: Update a line
+      description: >
+        Updates an existing line of spoken words. You can modify the line's content, and its sequence number can be reassigned via the Central Sequence Service if needed.
+      parameters:
+        - name: lineId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineUpdateRequest'
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: Line updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineResponse'
+        '400':
+          description: Invalid line input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '404':
+          description: Line not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+components:
+  schemas:
+    Line:
+      type: object
+      properties:
+        lineId:
+          type: integer
+          description: Unique identifier for the line.
+        speechId:
+          type: integer
+          description: ID of the speech this line belongs to.
+        characterId:
+          type: integer
+          description: ID of the character delivering this line.
+        content:
+          type: string
+          description: The content of the line.
+        sequenceNumber:
+          type: integer
+          description: Sequence number assigned by the Central Sequence Service to maintain order.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model, explaining why the line was created or updated.
+    LineCreateRequest:
+      type: object
+      properties:
+        speechId:
+          type: integer
+          description: ID of the speech this line will be part of.
+        characterId:
+          type: integer
+          description: ID of the character delivering this line.
+        content:
+          type: string
+          description: Content of the line to be created.
+        comment:
+          type: string
+          description: Contextual explanation for creating the line.
+      required:
+        - speechId
+        - characterId
+        - content
+        - comment
+    LineUpdateRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          description: Updated content of the line.
+        comment:
+          type: string
+          description: Contextual explanation for updating the line.
+      required:
+        - content
+        - comment
+    LineResponse:
+      type: object
+      properties:
+        lineId:
+          type: integer
+          description: Unique identifier for the line.
+        speechId:
+          type: integer
+          description: ID of the speech this line belongs to.
+        characterId:
+          type: integer
+          description: ID of the character delivering this line.
+        content:
+          type: string
+          description: The content of the line.
+        sequenceNumber:
+          type: integer
+          description: Sequence number assigned by the Central Sequence Service to maintain order.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model, explaining why the line was created or updated.
+    StandardError:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          description: Application-specific error code.
+        message:
+          type: string
+          description: Description of the error encountered.
+        details:
+          type: string
+          description: Additional information about the error, if available.
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+security:
+  - apiKeyAuth: []

@@ -1,0 +1,242 @@
+openapi: 3.1.0
+info:
+  title: Story Factory API
+  description: >
+    This API integrates data from the Core Script Management API, Character Management API, and Session and Context Management API to assemble and manage the logical flow of stories.
+  version: 4.0.0
+servers:
+  - url: https://storyfactory.fountain.coach
+    description: Production server for Story Factory API
+  - url: https://staging.storyfactory.fountain.coach
+    description: Staging server
+paths:
+  /stories:
+    get:
+      summary: Retrieve Full Story
+      operationId: getFullStory
+      description: Fetches a complete story, including sections, characters, actions, spoken words, and context.
+      parameters:
+        - name: scriptId
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Unique identifier of the script to retrieve the story for.
+        - name: filterByContext
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter story elements by context data. The context data can also be utilized in the Paraphrase Service for context-specific responses.
+      responses:
+        '200':
+          description: Full story retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FullStory'
+        '400':
+          description: Invalid request parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Script not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /stories/sequences:
+    get:
+      summary: Retrieve Story Sequences
+      operationId: getStorySequences
+      description: Retrieves specific sequences from a story, ensuring a logical flow.
+      parameters:
+        - name: scriptId
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Unique identifier of the script to retrieve sequences for.
+        - name: startSequence
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: The starting sequence number.
+        - name: endSequence
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: The ending sequence number.
+        - name: filterByContext
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter sequences by context data. The context data can also be utilized in the Paraphrase Service for context-specific responses.
+      responses:
+        '200':
+          description: Story sequences retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorySequence'
+        '400':
+          description: Invalid request parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Script or sequences not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    FullStory:
+      type: object
+      properties:
+        scriptId:
+          type: integer
+          description: Unique identifier of the script.
+        title:
+          type: string
+          description: Title of the script.
+        author:
+          type: string
+          description: Author of the script.
+        description:
+          type: string
+          description: Brief description or summary of the script.
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/SectionHeading'
+        story:
+          type: array
+          items:
+            $ref: '#/components/schemas/StoryElement'
+        orchestration:
+          type: object
+          properties:
+            csoundFilePath:
+              type: string
+              description: Path to the generated Csound file.
+            lilyPondFilePath:
+              type: string
+              description: Path to the generated LilyPond file.
+            midiFilePath:
+              type: string
+              description: Path to the generated MIDI file.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model, explaining why the story was assembled or updated.
+    SectionHeading:
+      type: object
+      properties:
+        headingId:
+          type: integer
+          description: Unique identifier for the Section Heading.
+        scriptId:
+          type: integer
+          description: Identifier of the script this Section Heading belongs to.
+        title:
+          type: string
+          description: Title of the Section Heading.
+        sequence:
+          type: integer
+          description: Order sequence of the Section Heading within the script.
+    StoryElement:
+      type: object
+      properties:
+        sequence:
+          type: integer
+          description: The sequence number of the story element, ensuring the correct order.
+        character:
+          $ref: '#/components/schemas/Character'
+        action:
+          $ref: '#/components/schemas/Action'
+        spokenWord:
+          $ref: '#/components/schemas/SpokenWord'
+        context:
+          $ref: '#/components/schemas/Context'
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model, explaining why the element is part of the story.
+    Character:
+      type: object
+      properties:
+        characterId:
+          type: integer
+          description: Unique identifier for the character.
+        name:
+          type: string
+          description: Name of the character.
+        description:
+          type: string
+          description: A brief description of the character and their role within the screenplay.
+    Action:
+      type: object
+      properties:
+        actionId:
+          type: integer
+          description: Unique identifier for the action.
+        description:
+          type: string
+          description: A textual description outlining what happens in this action.
+    SpokenWord:
+      type: object
+      properties:
+        dialogueId:
+          type: integer
+          description: Unique identifier for the SpokenWord entity.
+        text:
+          type: string
+          description: The dialogue text of the SpokenWord entity.
+        sequence:
+          type: integer
+          description: Order sequence of the SpokenWord within the script.
+    Context:
+      type: object
+      properties:
+        contextId:
+          type: integer
+          description: Unique identifier for the context.
+        characterId:
+          type: integer
+          description: Identifier of the character this context belongs to.
+        data:
+          type: object
+          description: Context data for the character.
+          additionalProperties:
+            type: string
+    StorySequence:
+      type: object
+      properties:
+        scriptId:
+          type: integer
+          description: Unique identifier of the script.
+        sequences:
+          type: array
+          items:
+            $ref: '#/components/schemas/StoryElement'
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model, explaining why the sequence was retrieved.
+    ErrorResponse:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          description: Application-specific error code.
+        message:
+          type: string
+          description: Human-readable error message.
+        details:
+          type: string
+          description: Additional information about the error, if available.

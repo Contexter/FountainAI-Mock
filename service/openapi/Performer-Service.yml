@@ -1,0 +1,233 @@
+openapi: 3.1.0
+info:
+  title: Performer Service
+  description: >
+    This service handles the creation, retrieval, updating, and management of performers within the story.
+    Data is persisted to SQLite and synchronized with Typesense for real-time search and retrieval. 
+    The service integrates with the Central Sequence Service to ensure consistent logical flow within the story.
+  version: 4.0.0
+servers:
+  - url: https://staging.performer.fountain.coach
+    description: Staging server for Performer Service
+paths:
+  /performers:
+    get:
+      operationId: listPerformers
+      summary: Retrieve all performers
+      description: >
+        Retrieves a list of all performers stored in SQLite and synchronized with Typesense for search. 
+        The Central Sequence Service ensures performers are returned in the correct sequence.
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: A list of performer entities from SQLite, synchronized with Typesense.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Performer'
+        '400':
+          description: Invalid query parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    post:
+      operationId: createPerformer
+      summary: Create a new performer
+      description: >
+        Creates a new performer entity and stores it in SQLite, synchronized with Typesense for real-time search.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PerformerCreateRequest'
+      responses:
+        '201':
+          description: Performer created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformerResponse'
+        '400':
+          description: Invalid input data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /performers/{performerId}:
+    get:
+      operationId: getPerformerById
+      summary: Retrieve performer by ID
+      description: >
+        Retrieves a performer by its unique ID from SQLite, synchronized with Typesense for search.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: performerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Performer retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformerResponse'
+        '400':
+          description: Invalid performer ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '404':
+          description: Performer not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    patch:
+      operationId: patchPerformer
+      summary: Partially update performer details
+      description: >
+        Partially updates a performer's details, only applying the changes provided in the request.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: performerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PerformerPatchRequest'
+      responses:
+        '200':
+          description: Performer updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformerResponse'
+        '400':
+          description: Invalid input data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '404':
+          description: Performer not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+components:
+  schemas:
+    Performer:
+      type: object
+      properties:
+        performerId:
+          type: integer
+          description: Unique identifier for the performer.
+        name:
+          type: string
+          description: The name of the performer.
+        sequenceNumber:
+          type: integer
+          description: Sequence number assigned by the Central Sequence Service.
+        isSyncedToTypesense:
+          type: boolean
+          description: Indicates whether the performer is synchronized with Typesense.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model, explaining why the performer was created or updated.
+    PerformerCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the performer.
+        comment:
+          type: string
+          description: Contextual explanation for creating the performer.
+      required:
+        - name
+        - comment
+    PerformerPatchRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the performer.
+        comment:
+          type: string
+          description: Contextual explanation for updating the performer.
+      required:
+        - comment
+    PerformerResponse:
+      type: object
+      properties:
+        performerId:
+          type: integer
+          description: Unique identifier for the performer.
+        name:
+          type: string
+          description: The name of the performer.
+        sequenceNumber:
+          type: integer
+          description: Sequence number assigned by the Central Sequence Service.
+        isSyncedToTypesense:
+          type: boolean
+          description: Indicates whether the performer is synchronized with Typesense.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model, explaining why the performer was created or updated.
+    StandardError:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          description: Application-specific error code.
+        message:
+          type: string
+          description: Description of the error encountered.
+        details:
+          type: string
+          description: Additional information about the error, if available.
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY

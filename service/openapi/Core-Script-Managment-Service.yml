@@ -1,0 +1,308 @@
+openapi: 3.1.0
+info:
+  title: Core Script Management API
+  description: >
+    This API manages scripts and their narrative elements, including retrieval by author, title, and other relevant filters. It integrates with Character and Performer Services and supports syncing with Typesense for enhanced searchability within the Story Factory context.
+  version: 4.0.0
+servers:
+  - url: https://staging.core-script.fountain.coach
+    description: Staging server for Core Script Management API
+paths:
+  /scripts:
+    get:
+      operationId: listScripts
+      summary: Retrieve all scripts
+      description: >
+        Fetches a list of all scripts available in the system. Supports filtering by author, title, character, action, and section titles.
+      parameters:
+        - name: author
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter scripts by author's name.
+        - name: title
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter scripts by title.
+        - name: characterId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter scripts by character ID.
+        - name: actionId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter scripts by action ID.
+        - name: sectionTitle
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search for scripts containing specific section titles.
+        - name: sortBy
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [title, author]
+          description: Sort the results by title or author.
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: A list of scripts.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Script'
+        '400':
+          description: Invalid query parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    post:
+      operationId: createScript
+      summary: Create a new script
+      description: >
+        Creates a new script, including sections. The script will be persisted to SQLite and synchronized with Typesense for enhanced searchability.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScriptCreateRequest'
+      responses:
+        '201':
+          description: Script created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScriptResponse'
+        '400':
+          description: Invalid input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /scripts/{scriptId}:
+    get:
+      operationId: getScriptById
+      summary: Retrieve a script by ID
+      description: >
+        Retrieves a specific script using its ID, including associated sections and characters.
+      parameters:
+        - name: scriptId
+          in: path
+          required: true
+          schema:
+            type: integer
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: Script details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScriptResponse'
+        '404':
+          description: Script not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    patch:
+      operationId: updateScript
+      summary: Update a script
+      description: >
+        Updates an existing script, allowing for modifications to sections. Changes will be synchronized with Typesense.
+      parameters:
+        - name: scriptId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScriptUpdateRequest'
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: Script updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScriptResponse'
+        '400':
+          description: Invalid script input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '404':
+          description: Script not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+components:
+  schemas:
+    Script:
+      type: object
+      properties:
+        scriptId:
+          type: integer
+          description: Unique identifier for the script.
+        title:
+          type: string
+          description: Title of the script.
+        author:
+          type: string
+          description: Author of the script.
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/Section'
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model, explaining why the script was created or updated.
+    ScriptCreateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Title of the script.
+        author:
+          type: string
+          description: Author of the script.
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/SectionCreateRequest'
+        comment:
+          type: string
+          description: Contextual explanation for creating the script.
+      required:
+        - title
+        - author
+        - sections
+        - comment
+    ScriptUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Updated title of the script.
+        author:
+          type: string
+          description: Updated author of the script.
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/SectionUpdateRequest'
+        comment:
+          type: string
+          description: Contextual explanation for updating the script.
+      required:
+        - title
+        - author
+        - sections
+        - comment
+    ScriptResponse:
+      type: object
+      properties:
+        scriptId:
+          type: integer
+          description: Unique identifier for the script.
+        title:
+          type: string
+          description: Title of the script.
+        author:
+          type: string
+          description: Author of the script.
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/Section'
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model, explaining why the script was created or updated.
+    Section:
+      type: object
+      properties:
+        sectionId:
+          type: integer
+          description: Unique identifier for the section.
+        title:
+          type: string
+          description: Title of the section.
+    SectionCreateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Title of the section.
+      required:
+        - title
+    SectionUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Updated title of the section.
+      required:
+        - title
+    StandardError:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          description: Application-specific error code.
+        message:
+          type: string
+          description: Description of the error encountered.
+        details:
+          type: string
+          description: Additional information about the error, if available.
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+security:
+  - apiKeyAuth: []

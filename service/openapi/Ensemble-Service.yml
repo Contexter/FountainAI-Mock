@@ -1,0 +1,545 @@
+openapi: 3.1.0
+info:
+  title: FountainAI Ensemble Service
+  description: |
+    The FountainAI Ensemble Service acts as the intermediary between the user, the OpenAI Assistant SDK, and FountainAI services. It dynamically generates system prompts from multiple OpenAPI definitions and manages service interactions. The service registry and logs are persisted to an SQLite database and synchronized with Typesense for real-time search and retrieval capabilities.
+  version: 1.1.0
+servers:
+  - url: https://ensemble.fountain.coach
+    description: Production server for FountainAI Ensemble Service
+  - url: https://staging.ensemble.fountain.coach
+    description: Staging server
+  - url: http://localhost:8000
+    description: Local deployment for testing and development
+
+tags:
+  - name: System Prompt Management
+    description: Operations related to generating system prompts
+  - name: Interaction Handling
+    description: Operations related to handling user interactions
+  - name: Logs Management
+    description: Operations related to retrieving logs
+  - name: Service Management
+    description: Operations related to managing services in the registry
+
+paths:
+  /services:
+    get:
+      summary: List available FountainAI services
+      description: >
+        Retrieves a list of all available FountainAI services with their identifiers and descriptions. The service registry is persisted to an SQLite database and synchronized with Typesense for real-time search and retrieval capabilities.
+      operationId: listServices
+      tags:
+        - Service Management
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: tags
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          description: Filter services by tags
+      responses:
+        '200':
+          description: List of services retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  services:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ServiceResponse'
+              example:
+                services:
+                  - id: "character-service"
+                    name: "Character Service"
+                    description: "Manages character data and interactions."
+                    openapi_url: "https://character-service.fountain.coach/openapi.json"
+                    tags: ["core", "stable"]
+                  - id: "action-service"
+                    name: "Action Service"
+                    description: "Handles actions performed by characters."
+                    openapi_url: "https://action-service.fountain.coach/openapi.json"
+                    tags: ["core", "stable"]
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /services/register:
+    post:
+      summary: Register a new FountainAI service
+      description: >
+        Registers a new service by adding it to the service registry. The service details are persisted to an SQLite database and synchronized with Typesense. If synchronization with Typesense fails, a retry mechanism will be triggered automatically.
+      operationId: registerService
+      tags:
+        - Service Management
+      security:
+        - adminApiKeyAuth: []
+      requestBody:
+        description: Details of the service to register
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceRegistration'
+      responses:
+        '201':
+          description: Service registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+        '400':
+          description: Bad Request - Invalid service data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Invalid admin API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /services/update/{service_id}:
+    put:
+      summary: Update an existing FountainAI service
+      description: >
+        Updates the details of an existing service in the service registry. Changes are persisted to an SQLite database and synchronized with Typesense. If synchronization with Typesense fails, a retry mechanism will be triggered automatically.
+      operationId: updateService
+      tags:
+        - Service Management
+      security:
+        - adminApiKeyAuth: []
+      parameters:
+        - name: service_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Identifier of the service to update
+      requestBody:
+        description: Updated details of the service
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceRegistration'
+      responses:
+        '200':
+          description: Service updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+        '400':
+          description: Bad Request - Invalid service data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Invalid admin API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found - Service does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /services/delete/{service_id}:
+    delete:
+      summary: Delete a FountainAI service
+      description: >
+        Removes a service from the service registry. The deletion is persisted in the SQLite database and synchronized with Typesense. If synchronization with Typesense fails, a retry mechanism will be triggered automatically.
+      operationId: deleteService
+      tags:
+        - Service Management
+      security:
+        - adminApiKeyAuth: []
+      parameters:
+        - name: service_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Identifier of the service to delete
+      responses:
+        '200':
+          description: Service deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          description: Unauthorized - Invalid admin API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found - Service does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /system-prompt:
+    get:
+      summary: Generate system prompt for the Assistant based on multiple services
+      description: >
+        Generates a system prompt for the Assistant using OpenAPI definitions from multiple FountainAI services. The services are specified by their identifiers from the service registry.
+      operationId: generateSystemPrompt
+      tags:
+        - System Prompt Management
+      parameters:
+        - name: service_ids
+          in: query
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+          description: List of FountainAI service identifiers to include in the system prompt
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: System prompt generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  system_prompt:
+                    type: string
+                    description: The generated system prompt for the Assistant
+              example:
+                system_prompt: "You are an AI assistant interacting with various FountainAI services through their OpenAPI specifications..."
+        '400':
+          description: Bad Request - Invalid service identifiers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /interact:
+    post:
+      summary: Handle user input and dynamically manage dialogue between the Assistant and services
+      description: >
+        Handles user input, sends it to the Assistant, and manages service requests based on a dynamically generated system prompt. Interactions are logged and persisted to an SQLite database, which is synchronized with Typesense.
+      operationId: handleUserInput
+      tags:
+        - Interaction Handling
+      requestBody:
+        description: User input to be processed by the Assistant
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_input:
+                  type: string
+                  description: The user's query or instruction
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: Assistant and service interaction response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  assistant_response:
+                    type: string
+                    description: The Assistant's response
+                  service_responses:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        service_name:
+                          type: string
+                          description: FountainAI service invoked
+                        response:
+                          type: string
+                          description: Response from the service
+              example:
+                assistant_response: "The character John Doe moves to the door."
+                service_responses:
+                  - service_name: "Character Service"
+                    response: "Character details retrieved successfully."
+                  - service_name: "Action Service"
+                    response: "Action 'move to door' processed successfully."
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /logs:
+    get:
+      summary: Retrieve logs of system-prompt-driven interactions
+      description: >
+        Logs past interactions, capturing key variables such as user input, Assistant responses, and service interactions. The logs are persisted to an SQLite database and synchronized with Typesense for real-time search and retrieval capabilities. If synchronization with Typesense fails, a retry mechanism will be triggered automatically.
+      operationId: retrieveLogs
+      tags:
+        - Logs Management
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 1000
+          description: Number of log entries to retrieve
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Offset for pagination
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: Logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logs:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        timestamp:
+                          type: string
+                          format: date-time
+                          description: Time of interaction
+                        user_input:
+                          type: string
+                          description: User's input
+                        assistant_response:
+                          type: string
+                          description: Assistant's response
+                        service_responses:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              service_name:
+                                type: string
+                                description: FountainAI service invoked
+                              response:
+                                type: string
+                                description: Response from the service
+              example:
+                logs:
+                  - timestamp: "2024-10-17T12:34:56Z"
+                    user_input: "Retrieve actions for character John Doe."
+                    assistant_response: "Character John Doe performs an action."
+                    service_responses:
+                      - service_name: "Action Service"
+                        response: "Action 'enter room' retrieved successfully."
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Failed to synchronize with Typesense
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TypesenseErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+      description: API key required for authentication
+    adminApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-ADMIN-API-KEY
+      description: Admin API key required for administrative actions
+
+  schemas:
+    ServiceRegistration:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the service
+        name:
+          type: string
+          description: Name of the service
+        description:
+          type: string
+          description: Description of the service
+        openapi_url:
+          type: string
+          format: uri
+          description: URL to the OpenAPI specification of the service
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags or categories associated with the service
+      required:
+        - id
+        - name
+        - description
+        - openapi_url
+
+    ServiceResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the service
+        name:
+          type: string
+          description: Name of the service
+        description:
+          type: string
+          description: Description of the service
+        openapi_url:
+          type: string
+          format: uri
+          description: URL to the OpenAPI specification of the service
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags or categories associated with the service
+
+    SuccessResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message
+
+    ErrorResponse:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          description: Application-specific error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: string
+          description: Additional information about the error, if available
+
+    TypesenseErrorResponse:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          description: Error code related to Typesense synchronization
+        retryAttempt:
+          type: integer
+          description: Number of retry attempts made to synchronize with Typesense
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: string
+          description: Additional information about the Typesense error, if available
+
+security:
+  - apiKeyAuth: []

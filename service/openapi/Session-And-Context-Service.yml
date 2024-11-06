@@ -1,0 +1,228 @@
+openapi: 3.1.0
+info:
+  title: Session and Context Management API
+  description: >
+    This API manages user sessions and context data for narrative elements, including characters, scripts, and paraphrases. It integrates with Character, Performer, and Core Script Management APIs to provide a cohesive storytelling experience. The ambiguity in session and context relationships fosters creative solutions.
+  version: 4.0.0
+servers:
+  - url: https://staging.session-context.fountain.coach
+    description: Staging server for Session and Context Management API
+paths:
+  /sessions:
+    get:
+      operationId: listSessions
+      summary: Retrieve all sessions
+      description: >
+        Fetches a list of all active user sessions. Can filter by context.
+      parameters:
+        - name: context
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter sessions by context description.
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: A list of sessions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Session'
+        '400':
+          description: Invalid query parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    post:
+      operationId: createSession
+      summary: Create a new session
+      description: >
+        Creates a new user session, allowing for context data to be attached. The session will be persisted to SQLite and synchronized with Typesense for enhanced searchability.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionCreateRequest'
+      responses:
+        '201':
+          description: Session created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          description: Invalid input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /sessions/{sessionId}:
+    get:
+      operationId: getSessionById
+      summary: Retrieve a session by ID
+      description: >
+        Retrieves a specific user session using its ID, including associated context data.
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: Session details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '404':
+          description: Session not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    patch:
+      operationId: updateSession
+      summary: Update a session
+      description: >
+        Updates an existing session, allowing for modifications to context data. Changes will be synchronized with Typesense.
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionUpdateRequest'
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: Session updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          description: Invalid session input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '404':
+          description: Session not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+components:
+  schemas:
+    Session:
+      type: object
+      properties:
+        sessionId:
+          type: integer
+          description: Unique identifier for the session.
+        context:
+          type: array
+          items:
+            type: string
+          description: Array of context strings for the session, which can include references to paraphrases.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model, explaining why the session was created or updated.
+    SessionCreateRequest:
+      type: object
+      properties:
+        context:
+          type: array
+          items:
+            type: string
+          description: Array of context strings to attach to the new session, which can include references to paraphrases.
+        comment:
+          type: string
+          description: Contextual explanation for creating the session.
+      required:
+        - context
+        - comment
+    SessionUpdateRequest:
+      type: object
+      properties:
+        context:
+          type: array
+          items:
+            type: string
+          description: Updated array of context strings for the session, including references to paraphrases.
+        comment:
+          type: string
+          description: Contextual explanation for updating the session.
+      required:
+        - context
+        - comment
+    SessionResponse:
+      type: object
+      properties:
+        sessionId:
+          type: integer
+          description: Unique identifier for the session.
+        context:
+          type: array
+          items:
+            type: string
+          description: Array of context strings for the session, which can include references to paraphrases.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model, explaining why the session was created or updated.
+    StandardError:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          description: Application-specific error code.
+        message:
+          type: string
+          description: Description of the error encountered.
+        details:
+          type: string
+          description: Additional information about the error, if available.
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+security:
+  - apiKeyAuth: []

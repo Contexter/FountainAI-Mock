@@ -1,0 +1,347 @@
+openapi: 3.1.0
+info:
+  title: Character Service
+  description: >
+    This service handles the creation, retrieval, updating, and management of characters within the story. 
+    Data is persisted to SQLite and synchronized with Typesense for real-time search and retrieval.
+    The service integrates with the Central Sequence Service to ensure consistent logical flow 
+    within the story. The assignment of performers to characters is left open for the calling client to manage.
+  version: 4.0.0
+servers:
+  - url: https://character.fountain.coach
+    description: Production server for Character Service
+  - url: https://staging.character.fountain.coach
+    description: Staging server for Character Service
+paths:
+  /characters:
+    get:
+      operationId: listCharacters
+      summary: Retrieve all characters
+      description: >
+        Retrieves a list of all characters stored in SQLite and synchronized with Typesense 
+        for search. The Central Sequence Service ensures characters are returned in the correct sequence.
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: >
+            A list of character entities from SQLite, synchronized with Typesense.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Character'
+        '500':
+          description: >
+            Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    post:
+      operationId: createCharacter
+      summary: Create a new character
+      description: >
+        Allows the creation of a new character. The data is persisted in SQLite and synchronized 
+        with Typesense for search. A sequence number is generated and managed by the Central Sequence Service.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CharacterCreateRequest'
+      responses:
+        '201':
+          description: >
+            Character successfully created and stored in SQLite, synchronized with Typesense.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CharacterResponse'
+        '400':
+          description: Invalid request data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: >
+            Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /characters/{characterId}:
+    get:
+      operationId: getCharacterById
+      summary: Retrieve character by ID
+      description: >
+        Retrieves a character's details by their unique ID.
+      parameters:
+        - name: characterId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: The ID of the character to retrieve.
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: >
+            The character details for the specified characterId.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CharacterResponse'
+        '404':
+          description: Character not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: >
+            Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    patch:
+      operationId: patchCharacter
+      summary: Partially update character details
+      description: >
+        Allows partial updates to character information, such as name or description. 
+      parameters:
+        - name: characterId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: The ID of the character to patch.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CharacterPatchRequest'
+      responses:
+        '200':
+          description: >
+            Character successfully updated with partial data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CharacterResponse'
+        '400':
+          description: Invalid request data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '404':
+          description: Character not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: >
+            Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+    put:
+      operationId: updateCharacter
+      summary: Fully update character details
+      description: >
+        Updates the character details completely. The data is persisted in SQLite and synchronized with Typesense.
+      parameters:
+        - name: characterId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: The ID of the character to update.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CharacterUpdateRequest'
+      responses:
+        '200':
+          description: >
+            Character successfully updated with full data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CharacterResponse'
+        '400':
+          description: Invalid request data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '404':
+          description: Character not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+        '500':
+          description: >
+            Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+  /characters/scripts/{scriptId}:
+    get:
+      operationId: listCharactersByScript
+      summary: Retrieve characters by script
+      description: >
+        Retrieves a list of characters based on a script, stored in SQLite and synchronized 
+        with Typesense for search. The Central Sequence Service ensures characters are returned in the correct sequence.
+      parameters:
+        - name: scriptId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: The ID of the script to retrieve characters from.
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: >
+            A list of characters for the specified script, synchronized with Typesense.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Character'
+        '404':
+          description: Script not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardError'
+components:
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+  schemas:
+    Character:
+      type: object
+      properties:
+        characterId:
+          type: integer
+          description: Unique identifier for the character.
+        name:
+          type: string
+          description: The name of the character.
+        description:
+          type: string
+          description: A brief description of the character and their role within the story.
+        sequenceNumber:
+          type: integer
+          description: >
+            Sequence number assigned by the Central Sequence Service.
+        isSyncedToTypesense:
+          type: boolean
+          description: Indicates whether the character is synchronized with Typesense.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model, explaining why the character was created or updated.
+    CharacterCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the character.
+        description:
+          type: string
+          description: A brief description of the character and their role within the story.
+        comment:
+          type: string
+          description: Contextual explanation for creating the character.
+      required:
+        - name
+        - description
+        - comment
+    CharacterPatchRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The updated name of the character.
+        description:
+          type: string
+          description: The updated description of the character.
+        comment:
+          type: string
+          description: Contextual explanation for updating the character.
+      required:
+        - comment
+    CharacterUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The updated name of the character.
+        description:
+          type: string
+          description: The updated description of the character.
+        comment:
+          type: string
+          description: Contextual explanation for updating the character.
+      required:
+        - name
+        - description
+        - comment
+    CharacterResponse:
+      type: object
+      properties:
+        characterId:
+          type: integer
+          description: Unique identifier for the character.
+        name:
+          type: string
+          description: The name of the character.
+        description:
+          type: string
+          description: A brief description of the character and their role within the story.
+        sequenceNumber:
+          type: integer
+          description: >
+            Sequence number assigned by the Central Sequence Service.
+        isSyncedToTypesense:
+          type: boolean
+          description: Indicates whether the character is synchronized with Typesense.
+        comment:
+          type: string
+          description: Contextual explanation generated dynamically by the GPT model, explaining why the character was created or updated.
+    StandardError:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          description: Application-specific error code.
+        message:
+          type: string
+          description: Description of the error.
+        details:
+          type: string
+          description: Additional information about the error, if available.
